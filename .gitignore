@@ -3,7 +3,7 @@
 
 py310/
 git/
-model/
+model/**/*.bin
 outputs/
 __pycache__/
 .venv/

@@ -5,6 +5,13 @@
     margin: 1.5em 0;
 }
 
+#c_stop_gen {
+    max-width: 2.5em;
+    min-width: 2.5em !important;
+    height: 2.5em;
+    margin: 1.5em 0;
+}
+
 .message {
     width: inherit !important;
     padding-left: 20px !important;

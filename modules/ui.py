@@ -11,7 +11,12 @@ script_path = "scripts"
 _gradio_template_response_orig = gr.routes.templates.TemplateResponse
 
 
-def predict(ctx, query, max_length, top_p, temperature, use_stream_chat):
+need_stop_gen = False
+
+
+def predict(ctx, query, out_prefix, max_length, top_p, temperature, use_stream_chat, use_enter_as_eos):
+    global need_stop_gen
+    need_stop_gen = False
     ctx.limit_round()
     flag = True
     for _, output in infer(
@@ -20,16 +25,37 @@ def predict(ctx, query, max_length, top_p, temperature, use_stream_chat):
             max_length=max_length,
             top_p=top_p,
             temperature=temperature,
-            use_stream_chat=use_stream_chat
+            use_stream_chat=use_stream_chat,
+            out_prefix=out_prefix,
     ):
+        # 如果把回车视为结束符，必须要检查 flag 为 False 时，才能退出
+        if use_enter_as_eos and '\n' in output and not flag:
+            break
+
         if flag:
             ctx.append(query, output)
             flag = False
         else:
             ctx.update_last(query, output)
-        yield ctx.rh, ""
+        yield ctx.rh #, ""
+
+        if need_stop_gen:
+            need_stop_gen = False
+            break
+
     ctx.refresh_last()
-    yield ctx.rh, ""
+    yield ctx.rh #, ""
+
+
+def only_submit_func(ctx, query, out_prefix):
+    ctx.limit_round()
+    ctx.append(query, out_prefix)
+    yield ctx.rh #, ""
+
+
+def stop_button_func():
+    global need_stop_gen
+    need_stop_gen = True
 
 
 def clear_history(ctx):
@@ -57,7 +83,7 @@ def create_ui():
                             max_length = gr.Slider(minimum=4, maximum=4096, step=4, label='Max Length', value=2048)
                             top_p = gr.Slider(minimum=0.01, maximum=1.0, step=0.01, label='Top P', value=0.7)
                         with gr.Row():
-                            temperature = gr.Slider(minimum=0.01, maximum=1.0, step=0.01, label='Temperature', value=0.95)
+                            temperature = gr.Slider(minimum=0.01, maximum=10., step=0.01, label='Temperature', value=0.95)
 
                         with gr.Row():
                             max_rounds = gr.Slider(minimum=1, maximum=100, step=1, label="最大对话轮数", value=20)
@@ -65,7 +91,8 @@ def create_ui():
 
                         cmd_output = gr.Textbox(label="Command Output")
                         with gr.Row():
-                            use_stream_chat = gr.Checkbox(label='使用流式输出', value=True)
+                            use_stream_chat = gr.Checkbox(label='使用流式输出（必须使用）', value=True, interactive=False)
+                            use_enter_as_eos = gr.Checkbox(label='遇到换行符则提前结束', value=False)
                 with gr.Row():
                     with gr.Column(variant="panel"):
                         with gr.Row():
@@ -88,7 +115,12 @@ def create_ui():
                     clear_input = gr.Button("🗑️", elem_id="del-btn")
 
                 with gr.Row():
+                    output_prefix_message = gr.Textbox(placeholder="output prefix", show_label=False, lines=3, elem_id="chat-output-prefix").style(container=False)
+
+                with gr.Row():
                     submit = gr.Button("发送", elem_id="c_generate")
+                    only_submit = gr.Button("仅发送", elem_id="c_only_submit")
+                    stop_button = gr.Button("⏹︎", elem_id="c_stop_gen")
 
                 with gr.Row():
                     revoke_btn = gr.Button("撤回")
@@ -96,15 +128,31 @@ def create_ui():
         submit.click(predict, inputs=[
             state,
             input_message,
+            output_prefix_message,
             max_length,
             top_p,
             temperature,
-            use_stream_chat
+            use_stream_chat,
+            use_enter_as_eos,
         ], outputs=[
             chatbot,
-            input_message
+            # input_message
         ])
-        revoke_btn.click(lambda ctx: ctx.revoke(), inputs=[state], outputs=[chatbot])
+        only_submit.click(only_submit_func, inputs=[
+            state,
+            input_message,
+            output_prefix_message,
+        ], outputs=[
+            chatbot,
+            # input_message
+        ])
+        stop_button.click(stop_button_func)
+
+        def revoke_btn_func(ctx):
+            stop_button_func()
+            return ctx.revoke()
+
+        revoke_btn.click(revoke_btn_func, inputs=[state], outputs=[chatbot])
         clear_history_btn.click(clear_history, inputs=[state], outputs=[chatbot])
         clear_input.click(lambda x: "", inputs=[input_message], outputs=[input_message])
         save_his_btn.click(lambda ctx: ctx.save_history(), inputs=[state], outputs=[cmd_output])

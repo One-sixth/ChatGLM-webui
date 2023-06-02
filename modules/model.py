@@ -63,7 +63,7 @@ def load_model():
 
 def infer(query,
           history: Optional[List[Tuple]],
-          max_length, top_p, temperature, use_stream_chat: bool):
+          max_length, top_p, temperature, use_stream_chat: bool, out_prefix=''):
     if cmd_opts.ui_dev:
         yield "hello", "hello, dev mode!"
         return
@@ -81,7 +81,8 @@ def infer(query,
                     tokenizer, query=query, history=history,
                     max_length=max_length,
                     top_p=top_p,
-                    temperature=temperature
+                    temperature=temperature,
+                    out_prefix=out_prefix
             ):
                 print(output[output_pos:], end='', flush=True)
                 output_pos = len(output)
@@ -93,7 +94,8 @@ def infer(query,
             tokenizer, query=query, history=history,
             max_length=max_length,
             top_p=top_p,
-            temperature=temperature
+            temperature=temperature,
+            out_prefix=out_prefix
         )
 
         print(output)

@@ -5,17 +5,18 @@ import time
 
 
 def parse_codeblock(text):
-    lines = text.split("\n")
-    for i, line in enumerate(lines):
-        if "```" in line:
-            if line != "```":
-                lines[i] = f'<pre><code class="{lines[i][3:]}">'
-            else:
-                lines[i] = '</code></pre>'
-        else:
-            if i > 0:
-                lines[i] = "<br/>" + line.replace("<", "&lt;").replace(">", "&gt;")
-    return "".join(lines)
+    return text
+    # lines = text.split("\n")
+    # for i, line in enumerate(lines):
+    #     if "```" in line:
+    #         if line != "```":
+    #             lines[i] = f'<pre><code class="{lines[i][3:]}">'
+    #         else:
+    #             lines[i] = '</code></pre>'
+    #     else:
+    #         if i > 0:
+    #             lines[i] = "<br/>" + line.replace("<", "&lt;").replace(">", "&gt;")
+    # return "".join(lines)
 
 
 class Context:
